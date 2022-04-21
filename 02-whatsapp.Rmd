@@ -10,15 +10,15 @@ editor_options:
 
 ## Vorbereitung
 
-In diesem Notebook können Sie Daten zu Ihrer Nutzungshistorie (Viewing History) bei *Netflix* explorieren. Sie können diese Daten [bei *Netflix* als `.csv`-Datei exportieren](https://www.netflix.com/viewingactivity). Diese können Sie dann lokal auf Ihrem Rechner speichern. Wenn Sie einen Blick in die Daten werfen möchten, können Sie dies z.B. mit Texteditoren wie [Notepad++](https://notepad-plus-plus.org/) oder [Atom](https://atom.io/) machen (*Hinweis*: Es ist prinzipiell auch möglich, die `.csv`-Datei mit *Excel* zu öffnen. Da *Excel* jedoch die Angewohnheit hat, beim Öffnen von Dateien deren Format bzw. das Format ihrer Inhalte zu verändern, würde ich diese Option tendenziell eher nicht empfehlen).
+In diesem Notebook können Sie Daten zu Ihrer Chatlogs auf Whatsapp explorieren. Sie können diese Daten in Whatsapp exportieren (pro Chat, am besten per Email). Diese Daten können Sie dann lokal auf Ihrem Rechner speichern. Wenn Sie einen Blick in die Daten werfen möchten, können Sie dies z.B. mit Texteditoren wie [Notepad++](https://notepad-plus-plus.org/) oder [Atom](https://atom.io/) machen .
 
-Nachdem Sie die Datei exportiert und lokal gespeichert haben, müssen Sie diese hier hochladen, um das Notebook nutzen zu können. Die Datei sollte im Ordner *data* gespeichert werden. Öffnen Sie diesen (durch Doppelklick auf den Ordnernamen) im File Explorer auf der linken Seite und nutzen dann den *Upload Files*-Button im Menü oben links (das Symbol ist ein Pfeil über einem Strich). Wählen Sie darüber die entsprechende `csv`-Datei aus (diese heißt standardmäßig `NetflixViewingHistory.csv`).
+Nachdem Sie die Datei exportiert und lokal gespeichert haben, müssen Sie diese hier hochladen, um das Notebook nutzen zu können. Die Datei sollte im Ordner *data* gespeichert werden. Öffnen Sie diesen (durch Doppelklick auf den Ordnernamen) im File Explorer auf der linken Seite und nutzen dann den *Upload Files*-Button im Menü oben links (das Symbol ist ein Pfeil über einem Strich). Wählen Sie darüber die entsprechende `txt`-Datei aus (am besten vorher umbenennen in `whatsapp.txt` o.ä.).
 
 **Zur Erinnerung**: Ihre persönliche Kopie des Notebooks sowie alle Dateien, die Sie hochladen, werden am Ende der Nutzungssitzung gelöscht. Wenn Sie aber ganz "auf Nummer sicher gehen" wollen, können Sie die Datei mit Ihren Tweets auch über den File Explorer auf der linken Seite nach dem Durcharbeiten dieses Notebooks auch manuell löschen: Rechtsklick auf den Dateinamen und dann *Delete* auswählen.
 
 ## Pakete laden
 
-Wie auch in den anderen Notebooks müssen wir zunächst die benötigten `R`-Pakete laden bevor wir mit der Analyse beginnen können.
+Wie auch in den anderen Notebooks müssen wir zunächst die benötigten `R`-Pakete laden bevor wir mit der Analyse beginnen können. Für das einlesen der Chatlogs verwenden wir das Paket [rwhatsapp](https://github.com/JBGruber/rwhatsapp), es gibt aber auch die umfangreichere (und komplexere) Alternative [WhatsR](https://github.com/gesiscss/WhatsR). RStudio wird uns auffordern, das Paket nachzuinstallieren, wenn noch nicht geschehen.
 
 ```{r}
 options(tidyverse.quiet = TRUE)
