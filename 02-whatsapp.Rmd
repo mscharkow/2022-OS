@@ -6,8 +6,6 @@ editor_options:
   chunk_output_type: console
 ---
 
-# Whatsapp Chat History explorieren
-
 ## Vorbereitung
 
 In diesem Notebook können Sie Daten zu Ihrer Chatlogs auf Whatsapp explorieren. Sie können diese Daten in Whatsapp exportieren (pro Chat, am besten per Email). Diese Daten können Sie dann lokal auf Ihrem Rechner speichern. Wenn Sie einen Blick in die Daten werfen möchten, können Sie dies z.B. mit Texteditoren wie [Notepad++](https://notepad-plus-plus.org/) oder [Atom](https://atom.io/) machen .

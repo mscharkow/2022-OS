@@ -1,0 +1,223 @@
+---
+title: Daten aus der eigenen Google Location History explorieren
+author: Johannes Breuer & Michael Scharkow
+output: github_document
+editor_options: 
+  chunk_output_type: console
+---
+
+
+Um mit den Daten aus Ihrem persönlichen Datenarchiv zu arbeiten, müssen Sie diese zunächst [exportieren](https://support.google.com/accounts/answer/3024190?hl=de). In diesem Notebook arbeiten wir mit Daten zum [Google Standortverlauf](https://support.google.com/accounts/answer/3118687?hl=de) (engl. Location History). Um mit diesem Notebook zu arbeiten, müssen Sie Ihre Daten zum Standortverlauf im `JSON`-Format exportieren.
+
+Sobald Sie Ihre Google-Daten heruntergeladen haben, müssen Sie die entsprechende `.zip`-Datei zunächst entpacken (der Name der Datei sollte mit "gtakeout" beginnen). Die Daten zum Standortverlauf sollten dann im Unterordner `Takeout/Standortverlauf` liegen. Die entsprechende Datei sollte `Standortverlauf.json` heißen.
+
+**Hinweis**: Wenn Sie die Daten lokal auf Ihrem Rechner explorieren möchten, können Sie dies nach dem Entpacken des Archivs über das Öffnen der Datei `Archiv_Übersicht.html` in Ihrem Browser tun.
+
+Wie auch in den anderen Notebooks für die Twitter- und Facebook-Daten, müssen Sie die Daten zur Exploration mit diesem Notebook hier hochladen. Die Datei sollte hier im Ordner *data* gespeichert werden. Öffnen Sie diesen (durch Doppelklick auf den Ordnernamen) im File Explorer auf der linken Seite und nutzen dann den *Upload Files*-Button im Menü oben links (das Symbol ist ein Pfeil über einem Strich). Wählen Sie darüber die entsprechende `JSON`-Datei von Ihrem lokalen Rechner aus und laden Sie diese in den Ordner *data* hoch. **NB**: Je nach Umfang der Daten kann dies einige Minuten dauern (der Fortschritt wird im Upload-Balken unten angezeigt).
+
+**Hinweis**: Wenn Sie den Google-Standortverlauf schon sehr lange und/oder regelmäßig nutzen, kann die Datei recht groß sein. In diesem Fall können der Upload sowie das Einlesen (im Code weiter unten) etwas länger dauern (dies gilt ggf. auch für das lokale Öffnen und Bearbeiten der Datei).
+
+**Zur Erinnerung**: Ihre persönliche Kopie des Notebooks sowie alle Dateien, die Sie hochladen, werden am Ende der Nutzungssitzung gelöscht. Wenn Sie aber ganz "auf Nummer sicher gehen" wollen, können Sie die Datei mit Ihren Daten zum Google Standortverlauf über den File Explorer auf der linken Seite nach dem Durcharbeiten dieses Notebooks auch manuell löschen: Rechtsklick auf den Dateinamen und dann *Delete* auswählen.
+
+## Pakete laden
+
+Wie in den anderen Notebooks auch, ist der erste Schritt das Laden der benötigten `R`-Pakete.
+
+```{r}
+library(jsonlite)
+library(maps)
+library(mapproj)
+library(ggrepel)
+library(tidygeocoder)
+library(lubridate)
+library(tidyverse)
+```
+
+## Daten einlesen und aufbereiten
+
+Im zweiten Schritt lesen wir die Daten ein und bringen sie in ein Format, mit dem wir dann arbeiten können. Sollte Ihre Datei einen anderen Namen haben, müssen Sie diese entweder umbenennen oder den Dateinamen in der nachfolgenden Code-Zelle entsprechend anpassen. **NB**: Wie bereits der Upload kann auch das Einlesen der Daten etwas dauern (wenn diese sehr umfangreich sind).
+
+```{r}
+loc_hist <- fromJSON("./data/Standortverlauf.json")
+locations <- loc_hist$locations
+```
+
+Da wir u.a. Trends bzw. Unterschiede über die Zeit visualisieren wollen, müssen wir die benötigten Zeitstempel formatieren bzw. generieren. 
+
+```{r}
+locations <- locations %>% 
+  mutate(timedate = as_datetime(as.numeric(timestampMs)/1000),
+         timedate = with_tz(timedate, tzone = "Europe/Berlin"),
+         date = as.Date(timedate),
+         year = year(timedate),
+         month = month(timedate))
+```
+
+Um einen ersten Eindruck davon zu bekommen, was in den Daten steckt, können wir uns die Namen der Variablen anzeigen lassen.
+
+```{r}
+names(locations)
+```
+
+Welchen Zeitraum decken die Daten ab?
+
+```{r}
+min(locations$timedate)
+max(locations$timedate)
+```
+
+Für wie viele Tage liegen Daten vor?
+
+```{r}
+n_days <- n_distinct(locations$date)
+n_days
+```
+
+Wie viele Datenpunkte liegen für die einzelnen Jahre vor?
+
+```{r}
+table(locations$year)
+```
+
+Wie viele Datenpunkte liegen im Durchschnitt für die Tage vor, für die Daten vorhanden sind?
+
+```{r}
+n_avg_day <- round(nrow(locations)/n_days,2)
+n_avg_day
+```
+
+Und wie viele Werte sind es für diese Tage durchschnittlich pro Stunde?
+
+```{r}
+round(n_avg_day/24 ,2)
+```
+
+## Datenpunkte pro Monat im Zeitverlauf
+
+```{r}
+locations %>%
+  mutate(time_floor = floor_date(timedate, unit = "1 month")) %>%
+  count(time_floor) %>%
+  ggplot(aes(x = as.factor(str_sub(as.character(time_floor), end = -4)), y = n)) +
+  geom_bar(stat = "identity") +
+  scale_y_continuous(expand = expansion(mult=c(0,0.1))) +
+  labs(title = "Number of times tracked per month by Google Location",
+       x = "Month",
+       y = "Number of data points") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
+
+## Genauigkeit der Messungen
+
+Die Daten enthalten auch Informationen dazu, wie genau die jeweiligen Standortmessungen sind. Zwecks Visualisierung teilen wir die numerische Variable, welche die Genauigkeit in Metern angibt, in Kategorien ein. Wir definieren hier eine Genauigkeit < 800m als hoch, eine über 800m aber unter 5000m als mittel und alles über 5000m als niedrig.
+
+```{r}
+locations <- locations %>% 
+  mutate(acc_cat = factor(case_when(
+    accuracy < 800 ~ "high",
+    accuracy < 5000 ~ "medium",
+    TRUE ~ "low"),
+    levels = c("high", "medium", "low")))
+
+locations %>% 
+  count(acc_cat)
+```
+
+## Aktivitäten
+
+In den Daten zum Standortverlauf ist auch eine automatisierte (auf Machine Learning basierende) Einschätzung der jeweiligen Bewegungsaktivität durch Google enthalten. Die Daten hierzu liegen in einer verschachtelten Struktur vor, weshalb einige weitere Aufbereitungsschritte nötig sind. Je nach Umfang der Daten kann dieser Schritt etwas dauern.
+
+```{r}
+activities <- locations$activity
+
+list.condition <- sapply(activities, function(x) !is.null(x[[1]]))
+                         
+activities  <- activities[list.condition]
+                         
+activities_df <- bind_rows(activities) %>% 
+  mutate(time = as.numeric(timestampMs)/1000)
+                         
+main_activity <- sapply(activities_df$activity, function(x) x[[1]][1][[1]][1])
+                        
+activities_df <- data.frame(main_activity = main_activity, 
+                            time = activities_df$time) %>% 
+  mutate(timedate = as_datetime(time),
+         timedate = with_tz(timedate, tzone = "Europe/Berlin"),
+         year = year(timedate))
+```
+
+Nun können wir die Verteilung der erkannten Aktivitäten visualisieren.
+
+```{r}
+activities_df %>% 
+  count(main = str_to_sentence(main_activity)) %>% 
+  ggplot(aes(x = reorder(main, n), y = n))+
+  geom_col()+
+  labs(
+    x = "Activity",
+    y = "Count",
+    title = "Main activities in Google Location history",
+    caption = "Associated activity for recorded positions. 
+    Because Google records activity probabilities for each position, 
+    only the activity with the highest likelihood was chosen for each position."
+  )+
+  coord_flip()
+```
+
+## Geschwindigkeit
+
+Für einige der Datenpunkte ist auch die gemessene/geschätzte Geschwindigkeit in den Daten enthalten. Diese ist in Metern pro Sekunde angegeben. Wenn wir uns die durschnittliche und maximale Geschwindigkeit in km/h ausgeben lassen wollen, müssen wir die Variable erst entsprechend transformieren.
+
+```{r}
+locations <- locations %>% 
+  mutate(kmh = (velocity*60*60)/1000)
+
+mean(locations$kmh, na.rm = T)
+max(locations$kmh, na.rm = T)
+```
+
+
+## Häufigste Orte zählen
+
+Wir können über die Koordinatenvariablen `latidudeE7` und `longitudeE7` auch direkt die meistbesuchten Orte zählen. Dazu codieren wir diese um, und runden die Koordinaten, um weniger Variabilität zu haben.
+
+```{r}
+top_loc = locations %>% 
+  mutate(lat = round(latitudeE7/1e7, 2), long = round(longitudeE7/1e7,2),
+         geo = paste(lat, long, sep=",")) %>% 
+  count(lat, long, geo,  sort = T) %>% 
+  mutate(percent = n/sum(n)*100) %>% 
+  head(10)
+
+top_loc
+```
+
+Interessanter ist es natürlich, die Orte in verständlicher Form lesen zu können. Dafür verwenden wir sog. Reverse Geo-Coding, d.h. die Koordinaten werden wieder mit Orten in Verbindung gebracht
+
+```{r}
+top_loc %>% 
+  reverse_geocode(lat = lat, long = long)
+```
+
+
+## Häufigste Orte visualisieren
+
+Es ist natürlich auch möglich, die eigenen Daten aus dem Google-Standortverlauf auf einer Karte zu visualiseren. Dazu benötigen wir nur ggplot und das `maps` Paket.
+
+```{r}
+top_loc %>% 
+  ggplot(aes(long, lat), color = "grey99") +
+  borders("world", regions = "Germany") + 
+  geom_point(aes(size = percent), show.legend = F) +
+  geom_label_repel(aes(label = paste0(round(percent),"%")), size = 3) +
+  theme_void()+
+  coord_map()+
+  labs(title = "Meine meistbesuchten Orte in Deutschland")
+```
+
+## Weitere Visualisierungsoptionen
+
+Für weitere Visualisierungen gibt es im Netz zahlreiche Anleitungen (z.B. [diese hier](https://medium.com/@tejasrr19/visualize-your-google-location-history-a2343b14a6fe)). In den meisten Fällen wir dazu das `R`-Paket [`ggmap`](https://cran.r-project.org/web/packages/ggmap/index.html) verwendet. Dieses verwendet die Google Maps API, für deren Nutzung man sich mittlerweile bei Google registrieren muss. Wie dies geht, wird im [GitHub-Repository für das `ggmap`-Paket](https://github.com/dkahle/ggmap) erklärt. Alternativ dazu kann man zur Exploration der eigenen Standortverlaufdaten auf einer Karte auch einfach das [Zeitachse-Tool von Google Maps](https://www.google.com/maps/timeline?pb) verwenden.
+
+
+

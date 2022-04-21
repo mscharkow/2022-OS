@@ -6,8 +6,6 @@ editor_options:
   chunk_output_type: console
 ---
 
-# Netflix Viewing History explorieren
-
 ## Vorbereitung
 
 In diesem Notebook können Sie Daten zu Ihrer Nutzungshistorie (Viewing History) bei *Netflix* explorieren. Sie können diese Daten [bei *Netflix* als `.csv`-Datei exportieren](https://www.netflix.com/viewingactivity). Diese können Sie dann lokal auf Ihrem Rechner speichern. Wenn Sie einen Blick in die Daten werfen möchten, können Sie dies z.B. mit Texteditoren wie [Notepad++](https://notepad-plus-plus.org/) oder [Atom](https://atom.io/) machen (*Hinweis*: Es ist prinzipiell auch möglich, die `.csv`-Datei mit *Excel* zu öffnen. Da *Excel* jedoch die Angewohnheit hat, beim Öffnen von Dateien deren Format bzw. das Format ihrer Inhalte zu verändern, würde ich diese Option tendenziell eher nicht empfehlen).
