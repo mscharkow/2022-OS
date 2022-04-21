@@ -38,7 +38,7 @@ Im nächsten Schritt lesen wir die Daten ein.
 if(file.exists("./data/whatsapp.txt")) {
   my_whatsapp <- read_lines("./data/whatsapp.txt") %>% rwa_read()
   } else {
-  my_whatsapp <- read_lines("https://raw.githubusercontent.com/gesiscss/WhatsR/master/inst/germanandroid24h.txt") %>% rwa_read()
+  my_whatsapp <- read_lines("https://raw.githubusercontent.com/gesiscss/WhatsR/master/inst/germaniosampm.txt") %>% rwa_read()
   }
 ```
 
@@ -50,7 +50,7 @@ my_whatsapp
 
 ## Chat-Beiträge nach Teilnehmern
 
-Wer hat am meisten Beiträge verfasst?
+### Wer hat am meisten Beiträge verfasst?
 
 ```{r}
 author_freqs = my_whatsapp %>% 
@@ -66,5 +66,26 @@ author_freqs %>%
   geom_col()+
   coord_flip()+
   labs(x = "", y = "Gesendete Nachrichten", title = "Whatsapp-Aktivitäten nach Teilnehmerin")
+```
+
+
+### Wer hat am meisten pro Message geschrieben?
+
+```{r}
+my_whatsapp %>% 
+  mutate(chars = str_count(text)) %>% 
+  group_by(author) %>% 
+  summarise(messages = n(), chars_per_message = sum(chars)/n()) %>% 
+  na.omit()
+```
+
+
+## Emoji-Nutzung
+
+```{r}
+my_whatsapp %>% 
+  unnest(emoji) %>% 
+  count(emoji, sort = T) %>% 
+  head(10)
 ```
 
