@@ -1,0 +1,70 @@
+---
+title: Analyse der Whatsapp Chat History
+author: Michael Scharkow
+output: github_document
+editor_options: 
+  chunk_output_type: console
+---
+
+# Whatsapp Chat History explorieren
+
+## Vorbereitung
+
+In diesem Notebook können Sie Daten zu Ihrer Nutzungshistorie (Viewing History) bei *Netflix* explorieren. Sie können diese Daten [bei *Netflix* als `.csv`-Datei exportieren](https://www.netflix.com/viewingactivity). Diese können Sie dann lokal auf Ihrem Rechner speichern. Wenn Sie einen Blick in die Daten werfen möchten, können Sie dies z.B. mit Texteditoren wie [Notepad++](https://notepad-plus-plus.org/) oder [Atom](https://atom.io/) machen (*Hinweis*: Es ist prinzipiell auch möglich, die `.csv`-Datei mit *Excel* zu öffnen. Da *Excel* jedoch die Angewohnheit hat, beim Öffnen von Dateien deren Format bzw. das Format ihrer Inhalte zu verändern, würde ich diese Option tendenziell eher nicht empfehlen).
+
+Nachdem Sie die Datei exportiert und lokal gespeichert haben, müssen Sie diese hier hochladen, um das Notebook nutzen zu können. Die Datei sollte im Ordner *data* gespeichert werden. Öffnen Sie diesen (durch Doppelklick auf den Ordnernamen) im File Explorer auf der linken Seite und nutzen dann den *Upload Files*-Button im Menü oben links (das Symbol ist ein Pfeil über einem Strich). Wählen Sie darüber die entsprechende `csv`-Datei aus (diese heißt standardmäßig `NetflixViewingHistory.csv`).
+
+**Zur Erinnerung**: Ihre persönliche Kopie des Notebooks sowie alle Dateien, die Sie hochladen, werden am Ende der Nutzungssitzung gelöscht. Wenn Sie aber ganz "auf Nummer sicher gehen" wollen, können Sie die Datei mit Ihren Tweets auch über den File Explorer auf der linken Seite nach dem Durcharbeiten dieses Notebooks auch manuell löschen: Rechtsklick auf den Dateinamen und dann *Delete* auswählen.
+
+## Pakete laden
+
+Wie auch in den anderen Notebooks müssen wir zunächst die benötigten `R`-Pakete laden bevor wir mit der Analyse beginnen können.
+
+```{r}
+options(tidyverse.quiet = TRUE)
+knitr::opts_chunk$set(warning = F, message = F)
+library(lubridate)
+library(tidyverse)
+theme_set(theme_minimal())
+
+library(rwhatsapp)
+```
+
+## Daten einlesen & aufbereiten
+
+Im nächsten Schritt lesen wir die Daten ein.
+
+```{r}
+if(file.exists("./data/whatsapp.txt")) {
+  my_whatsapp <- read_lines("./data/whatsapp.txt") %>% rwa_read()
+  } else {
+  my_whatsapp <- read_lines("https://raw.githubusercontent.com/gesiscss/WhatsR/master/inst/germanandroid24h.txt") %>% rwa_read()
+  }
+```
+
+Um nun zu schauen, was in den Daten drinsteckt, können wir einen ersten Blick darauf werfen.
+
+```{r}
+my_whatsapp
+```
+
+## Chat-Beiträge nach Teilnehmern
+
+Wer hat am meisten Beiträge verfasst?
+
+```{r}
+author_freqs = my_whatsapp %>% 
+  count(author) %>%
+  na.omit()
+
+author_freqs  
+```
+
+```{r}
+author_freqs %>% 
+  ggplot(aes(x = reorder(author, n), y = n))+
+  geom_col()+
+  coord_flip()+
+  labs(x = "", y = "Gesendete Nachrichten", title = "Whatsapp-Aktivitäten nach Teilnehmerin")
+```
+

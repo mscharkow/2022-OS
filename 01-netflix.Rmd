@@ -2,6 +2,8 @@
 title: Analyse der Netflix Viewing History
 author: Johannes Breuer & Michael Scharkow
 output: github_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 # Netflix Viewing History explorieren
@@ -10,7 +12,7 @@ output: github_document
 
 In diesem Notebook können Sie Daten zu Ihrer Nutzungshistorie (Viewing History) bei *Netflix* explorieren. Sie können diese Daten [bei *Netflix* als `.csv`-Datei exportieren](https://www.netflix.com/viewingactivity). Diese können Sie dann lokal auf Ihrem Rechner speichern. Wenn Sie einen Blick in die Daten werfen möchten, können Sie dies z.B. mit Texteditoren wie [Notepad++](https://notepad-plus-plus.org/) oder [Atom](https://atom.io/) machen (*Hinweis*: Es ist prinzipiell auch möglich, die `.csv`-Datei mit *Excel* zu öffnen. Da *Excel* jedoch die Angewohnheit hat, beim Öffnen von Dateien deren Format bzw. das Format ihrer Inhalte zu verändern, würde ich diese Option tendenziell eher nicht empfehlen).
 
-Nachdem Sie die Datei exportiert und lokal gespeichertt haben, müssen Sie diese hier hochladen, um das Notebook nutzen zu können. Die Datei sollte im Ordner *data* gespeichert werden. Öffnen Sie diesen (durch Doppelklick auf den Ordnernamen) im File Explorer auf der linken Seite und nutzen dann den *Upload Files*-Button im Menü oben links (das Symbol ist ein Pfeil über einem Strich). Wählen Sie darüber die entsprechende `csv`-Datei aus (diese heißt standardmäßig `NetflixViewingHistory.csv`).
+Nachdem Sie die Datei exportiert und lokal gespeichert haben, müssen Sie diese hier hochladen, um das Notebook nutzen zu können. Die Datei sollte im Ordner *data* gespeichert werden. Öffnen Sie diesen (durch Doppelklick auf den Ordnernamen) im File Explorer auf der linken Seite und nutzen dann den *Upload Files*-Button im Menü oben links (das Symbol ist ein Pfeil über einem Strich). Wählen Sie darüber die entsprechende `csv`-Datei aus (diese heißt standardmäßig `NetflixViewingHistory.csv`).
 
 **Zur Erinnerung**: Ihre persönliche Kopie des Notebooks sowie alle Dateien, die Sie hochladen, werden am Ende der Nutzungssitzung gelöscht. Wenn Sie aber ganz "auf Nummer sicher gehen" wollen, können Sie die Datei mit Ihren Tweets auch über den File Explorer auf der linken Seite nach dem Durcharbeiten dieses Notebooks auch manuell löschen: Rechtsklick auf den Dateinamen und dann *Delete* auswählen.
 
@@ -36,12 +38,7 @@ if(file.exists("./data/NetflixViewingHistory.csv")) {
   } else {
   my_netflix <- read_csv("https://raw.githubusercontent.com/rckclimber/analysing-netflix-viewing-history/master/plots/g-NetflixViewingHistory.csv")  
   }
-
-
-
 ```
-
-
 
 
 Wie für die anderen Datentypen (Twitter, Facebook, Google) müssen wir auch die *Netflix*-Daten ein wenig aufbereiten damit wir gut mit ihnen arbeiten können. Da die Daten bereits als `.csv`-Datei vorliegen ist der Aufwand hier jedoch deutlich geringer als im Falle `JSON`-Dateien für die anderen Datentypen.
