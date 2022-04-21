@@ -1,0 +1,111 @@
+---
+title: Analyse eigener Facebook-Daten
+author: Johannes Breuer & Michael Scharkow
+output: github_document
+editor_options: 
+  chunk_output_type: console
+---
+
+## Vorbereitung
+
+Mit dieser Analyse können Sie einen Teil Ihrer eigenen Facebook-Daten explorieren. Hierfür müssen Sie eine [Kopie Ihrer persönlichen Facebook-Daten herunterladen](https://www.facebook.com/help/1701730696756992). Wir arbeiten in diesem Notebook mit den Daten im `JSON`-Format, in welchem Sie Ihre Daten dementsprechend exportieren müssen, wenn Sie diese mit diesem Notebook explorieren möchten. Nachdem Sie Ihr Archiv gespeichert haben, müssen Sie die `.zip`-Datei zunächst entpacken.
+
+**Hinweis**: Wenn Sie Ihre Facebook-Daten im `HTML`-Format exportieren, können Sie diese auch lokal in Ihrem Browser explorieren. Hierzu müssen Sie, nachdem Sie die Dateien entpackt haben, auf Ihrem Rechner lokal die Datei `index.html` öffnen. Im Netz gibt es zahlreiche Tutorials dazu, wie man seine Facebook-Daten exportiert und die `HTML`-Dateien mithilfe des Browsers explorieren kann (z.B. [dieses hier](https://www.makeuseof.com/tag/download-entire-facebook-history-data-downloader/)).
+
+Hier explorieren wir Daten zu Posts, Freunden sowie Reaktionen auf Facebook (um Nachrichten aus dem Facebok Messenger zu explorieren, können Sie z.B. das Tool [FB Message Explorer](https://github.com/adurivault/FBMessage) nutzen). Hierzu benötigen folgende Dateien: `your_posts_1.json` (Facebook-Posts), `posts_and_comments.json` (Kommentare und Reaktionen) und `friends.json` (Daten zu Facebook-Freunden). Die Dateien sollten hier im Ordner *data* gespeichert werden. Öffnen Sie diesen (durch Doppelklick auf den Ordnernamen) im File Explorer auf der linken Seite und nutzen dann den *Upload Files*-Button im Menü oben links (das Symbol ist ein Pfeil über einem Strich). Wählen Sie darüber die entsprechenden `JSON`-Dateien von Ihrem lokalen Rechner aus und laden Sie diese in den Ordner *data* hoch.
+
+**Hinweis**: Wenn Sie Facebook schon sehr lange und/oder sehr intensiv nutzen können die Dateien recht groß sein. In diesem Fall können der Upload sowie das Einlesen (im Code weiter unten) etwas länger dauern (dies gilt ggf. auch für das lokale Öffnen und Bearbeiten der Datei).
+
+**Zur Erinnerung**: Ihre persönliche Kopie des Notebooks sowie alle Dateien, die Sie hochladen, werden am Ende der Nutzungssitzung gelöscht. Wenn Sie aber ganz "auf Nummer sicher gehen" wollen, können Sie die Dateien mit Ihren Facebook-Daten über den File Explorer auf der linken Seite nach dem Durcharbeiten dieses Notebooks auch manuell löschen: Rechtsklick auf den Dateinamen und dann *Delete* auswählen.
+
+## Pakete laden
+
+Wie auch in den anderen Notebooks müssen wir zunächst die benötigten `R`-Pakete laden. 
+
+```{r}
+library(jsonlite)
+library(lubridate)
+library(tidyverse)
+```
+
+## Freunde
+
+Zunächst schauen wir uns die Daten zu Freundschaften auf Facebook an. Hierzu müssen wir die entsprechende `JSON`-Datei einlesen und diese in ein `data.frame`-Objekt umwandeln, mit dem wir in `R` arbeiten können
+
+```{r}
+fb_friends <- fromJSON("./data/fb_friends.json")
+fb_friends_df <- as.data.frame(fb_friends)
+```
+
+Um einen ersten Eindruck von diesen Daten zu bekommen, können wir uns die Variablennamen sowie die ersten zehn Fälle bzw. Zeilen anschauen.
+
+```{r}
+names(fb_friends_df)
+head(fb_friends_df)
+```
+
+Wir wollen nun visualisieren, wie viele neue Facebook-Freunde wir pro Monat gewonnen haben. Hierzu müssen wir das Format der Zeitstempel anpassen. Zusätzlich benennen wir hier die Variablen noch um.
+
+```{r}
+fb_friends_df <- fb_friends_df %>% 
+  rename_all(~stringr::str_replace(.,"_v2","")) %>% 
+  mutate(timedate = as_datetime(friends.timestamp),
+         timedate = with_tz(timedate, tzone = "Europe/Berlin"))
+```
+
+Nun können wir uns anschauen, wie viele neue Facebook-Freunde wir im Laufe unserer Nutzung gewonnen haben.
+
+```{r}
+fb_friends_df %>%
+  mutate(time_floor = floor_date(timedate, unit = "1 month")) %>%
+  count(time_floor) %>%
+  ggplot(aes(x = as.Date(time_floor), y = n)) +
+  geom_bar(stat = "identity") +
+  scale_x_date(breaks = function(x) seq.Date(from = min(x), to = max(x), by = "6 months"),
+               minor_breaks = function(x) seq.Date(from = min(x), to = max(x), by = "1 month"),
+               expand = expansion(mult=c(0,0))) +
+  scale_y_continuous(expand = expansion(mult=c(0,0.05))) +
+  labs(title = "Anzahl neuer Facebook-Freunde pro Monat",
+       x = "Monat",
+       y = "Neue Facebook-Freunde") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+Vielleicht interessiert uns auch, wann wie unseren ersten Facebook-Freund bzw. unsere erste Facebook-Freundin hinzugefügt haben und wann wir dies zuletzt gemacht haben (vor Export der Daten).
+
+```{r}
+min(fb_friends_df$timedate)
+max(fb_friends_df$timedate)
+```
+
+## Reaktionen
+
+In diesem Abschnitt befassen wir uns mit Reaktionen auf Posts, Kommentare etc. Auch hierfür müssen wir im ersten Schritt die Daten einlesen und diese in ein Format bringen, mit dem wir arbeiten können.
+
+```{r}
+fb_reactions <- fromJSON("./data/fb_reactions.json")
+fb_reactions_df <- as.data.frame(fb_reactions)
+
+fb_reactions_df <- fb_reactions_df %>% 
+  rename_all(~stringr::str_replace(.,"_v2","")) %>% 
+  unnest(reactions.data)
+```
+
+Das Format, in dem die Daten vorliegen, ist in diesem Fall etwas komplizierter (man könnte auch sagen verschachtelter), weswegen zusätzliche Aufbereitungsschritte nötig sind,
+
+```{r}
+reactions_df <- bind_rows(fb_reactions_df$reaction)
+
+fb_reactions_df <- fb_reactions_df %>% 
+  select(reactions.timestamp, reactions.title) %>% 
+  mutate(timedate = as_datetime(reactions.timestamp),
+         timedate = with_tz(timedate, tzone = "Europe/Berlin")) %>% 
+  bind_cols(reactions_df) %>% 
+  filter(reactions.timestamp != 0)
+```
+
+Auch für diese Daten können wir uns anschauen, wie sie nun strukturiert sind.
+
+```{r}
+fb_reactions_df
+```
