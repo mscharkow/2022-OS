@@ -1,0 +1,191 @@
+---
+title: Analyse der Netflix Viewing History
+author: Johannes Breuer & Michael Scharkow
+output: github_document
+---
+
+# Netflix Viewing History explorieren
+
+## Vorbereitung
+
+In diesem Notebook können Sie Daten zu Ihrer Nutzungshistorie (Viewing History) bei *Netflix* explorieren. Sie können diese Daten [bei *Netflix* als `.csv`-Datei exportieren](https://www.netflix.com/viewingactivity). Diese können Sie dann lokal auf Ihrem Rechner speichern. Wenn Sie einen Blick in die Daten werfen möchten, können Sie dies z.B. mit Texteditoren wie [Notepad++](https://notepad-plus-plus.org/) oder [Atom](https://atom.io/) machen (*Hinweis*: Es ist prinzipiell auch möglich, die `.csv`-Datei mit *Excel* zu öffnen. Da *Excel* jedoch die Angewohnheit hat, beim Öffnen von Dateien deren Format bzw. das Format ihrer Inhalte zu verändern, würde ich diese Option tendenziell eher nicht empfehlen).
+
+Nachdem Sie die Datei exportiert und lokal gespeichertt haben, müssen Sie diese hier hochladen, um das Notebook nutzen zu können. Die Datei sollte im Ordner *data* gespeichert werden. Öffnen Sie diesen (durch Doppelklick auf den Ordnernamen) im File Explorer auf der linken Seite und nutzen dann den *Upload Files*-Button im Menü oben links (das Symbol ist ein Pfeil über einem Strich). Wählen Sie darüber die entsprechende `csv`-Datei aus (diese heißt standardmäßig `NetflixViewingHistory.csv`).
+
+**Zur Erinnerung**: Ihre persönliche Kopie des Notebooks sowie alle Dateien, die Sie hochladen, werden am Ende der Nutzungssitzung gelöscht. Wenn Sie aber ganz "auf Nummer sicher gehen" wollen, können Sie die Datei mit Ihren Tweets auch über den File Explorer auf der linken Seite nach dem Durcharbeiten dieses Notebooks auch manuell löschen: Rechtsklick auf den Dateinamen und dann *Delete* auswählen.
+
+## Pakete laden
+
+Wie auch in den anderen Notebooks müssen wir zunächst die benötigten `R`-Pakete laden bevor wir mit der Analyse beginnen können.
+
+```{r}
+options(tidyverse.quiet = TRUE)
+knitr::opts_chunk$set(warning = F, message = F)
+library(lubridate)
+library(tidyverse)
+theme_set(theme_minimal())
+```
+
+## Daten einlesen & aufbereiten
+
+Im nächsten Schritt lesen wir die Daten ein.
+
+```{r}
+if(file.exists("./data/NetflixViewingHistory.csv")) {
+  my_netflix <- read_csv("./data/NetflixViewingHistory.csv")
+  } else {
+  my_netflix <- read_csv("https://raw.githubusercontent.com/rckclimber/analysing-netflix-viewing-history/master/plots/g-NetflixViewingHistory.csv")  
+  }
+
+
+
+```
+
+
+
+
+Wie für die anderen Datentypen (Twitter, Facebook, Google) müssen wir auch die *Netflix*-Daten ein wenig aufbereiten damit wir gut mit ihnen arbeiten können. Da die Daten bereits als `.csv`-Datei vorliegen ist der Aufwand hier jedoch deutlich geringer als im Falle `JSON`-Dateien für die anderen Datentypen.
+
+```{r}
+my_netflix <- my_netflix %>% 
+  separate(col = Title, into = c("show", "season", "episode"), sep = ": ")
+```
+
+Um nun zu schauen, was in den Daten drinsteckt, können wir einen ersten Blick darauf werfen.
+
+```{r}
+glimpse(my_netflix)
+```
+
+Für die Exploration unserer *Netflix* Viewing History trennen wir den Datensatz zunächst in Serien (für diese gibt es die Werte *Season* und *Episode*) und Filme (für diese gibt es die Werte *Season* und *Episode* nicht).
+
+```{r}
+my_netflix_shows <- my_netflix %>% 
+  filter(!is.na(season) & !is.na(episode))
+
+my_netflix_movies <- my_netflix %>% 
+  filter(is.na(season) & is.na(episode))
+```
+
+## Erste Exploration
+
+Nachdem wir die Daten nunr aufbereitet haben, können wir im ersten Schritt schauen, wie viele verschiedene Serien wir geschaut haben.
+
+```{r}
+n_distinct(my_netflix_shows$show)
+```
+
+Auf die gleiche Weise können wir schauen, wie viele Filme wir auf *Netflix* gesehen haben.
+
+```{r}
+n_distinct(my_netflix_movies$show)
+```
+
+## Binge Watching
+
+Wir kennen es alle: Es gibt Serien, da schaut man immer weiter. Ebenso gibt es Tage, an denen man mehr Zeit (als geplant) mit *Netflix* verbringt. Dann passiert das, was gemeinhin gerne *Binge Watching* genannt wird.
+
+### Most-binged shows
+
+Um unser eigenes Binge-Watching-Verhalten zu erkunden, können wir uns bspw. ansehen, an welchen Tagen wir die meisten Folgen einer bestimmten Serie geschaut haben.
+
+```{r}
+episodes_per_day <- my_netflix_shows %>% 
+  count(show, Date)
+
+episodes_per_day %>% 
+  arrange(-n) %>%
+  head(10)
+```
+
+### Binge Days
+
+Ebenso können wir uns ansehen, an welchen Tagen wir insgesamt die meisten Serienfolgen auf *Netflix* geschaut haben.
+
+```{r}
+my_netflix_per_day <- my_netflix_shows %>% 
+  count(Date) %>% 
+  arrange(-n)
+
+my_netflix_per_day %>% 
+  head(10)
+
+per_week = my_netflix_per_day %>%
+  group_by(week = floor_date(Date, "1 week")) %>% 
+  summarise(n = sum(n)) 
+
+per_week %>% 
+  ggplot(aes(x = week, y = n)) +
+  geom_line() +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  labs(title = "Geschaute Netflix-Serienfolgen pro Woche",
+       subtitle = "Von 2015 bis 2021",
+       x = "Jahr",
+       y = "Anzahl geschauter Folgen")
+```
+
+Eine andere Möglichkeit, Unterschiede und v.a. Spitzen in unserer *Netflix*-Nutzung über die Zeit zu visualisieren, ist eine sogenannte Heatmap. Um diese zu erstellen ist wiederum ein wenig Datenaufbereitung (Data Wrangling) nötig.
+
+```{r}
+my_netflix_per_day <- my_netflix_per_day %>% 
+  arrange(Date) %>% 
+  mutate(wday_number = wday(Date, week_start = 1),
+         wday_name = wday(Date, week_start = 1, label = T, abbr = T),
+         month = month(Date, label = T, abbr = T),
+         week = week(Date),
+         week_month = ceiling(day(Date) / 7))
+
+my_netflix_per_day %>% 
+  ggplot(aes(x = week_month, y = reorder(wday_name, desc(wday_name)), fill = n)) + 
+  geom_tile(colour = "white") + 
+  facet_grid(year(my_netflix_per_day$Date) ~ month) + 
+  scale_fill_gradient(low = "#FFD000",
+                      high = "#FF1919") +
+  labs(title = "Mein Netflix-Serienkonsum über die Zeit",
+       subtitle = "Heatmap für Tage, Wochen und Monate",
+       x = "Wochennummer",
+       y = "Wochentag",
+       fill = "Anzahl geschauter Folgen")
+```
+
+## Unterschiede zwischen Wochentagen
+
+An welchen Wochentagen schauen wir besonders viel bzw. besonders wenig *Netflix*?
+
+```{r}
+my_netflix_weekday <- my_netflix_per_day %>%
+  group_by(wday_name) %>% 
+  summarize(episodes = sum(n))
+
+my_netflix_weekday %>% 
+  ggplot(aes(x = wday_name, y = episodes)) +
+  geom_col() +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
+  ggtitle("Anzahl geschauter Serienfolgen auf Netflix",
+          "Nutzung nach Wochentagen") +
+  labs(y = "Anzahl der Folgen",
+       x = "Wochentag")
+```
+
+## Saisonale Unterschiede
+
+Als letzten Punkt in diesem Notebook wollen wir uns noch anschauen, ob wir saisonale Trends in Form von Unterschieden zwischen den Monaten in unserer *Netflix*-Nutzung identifizieren können.
+
+```{r}
+my_netflix_month <- my_netflix_per_day %>%
+  count(month)
+
+my_netflix_month %>% 
+  ggplot(aes(x = month, y = n)) +
+  geom_col(fill = "#808000") +
+  coord_polar()  +
+  theme_minimal() +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.text.x = element_text(face = "bold"),
+        plot.title = element_text(size = 18, face = "bold")) +
+  ggtitle("Intensität der Netflix-Nutzung",
+                "Nutzungsunterschiede nach Monaten")
+```
+
