@@ -32,7 +32,9 @@ Im nächsten Schritt lesen wir die Daten ein.
 
 ```{r}
 if(file.exists("./data/NetflixViewingHistory.csv")) {
-  my_netflix <- read_csv("./data/NetflixViewingHistory.csv")
+  my_netflix <- read_csv("./data/NetflixViewingHistory.csv") %>% 
+    mutate(Date = lubridate::dmy(Date)) %>% 
+    filter(Date > as.Date("2000-01-02"))
   } else {
   my_netflix <- read_csv("https://raw.githubusercontent.com/rckclimber/analysing-netflix-viewing-history/master/plots/g-NetflixViewingHistory.csv")  
   }
@@ -131,14 +133,15 @@ my_netflix_per_day <- my_netflix_per_day %>%
          week_month = ceiling(day(Date) / 7))
 
 my_netflix_per_day %>% 
-  ggplot(aes(x = week_month, y = reorder(wday_name, desc(wday_name)), fill = n)) + 
-  geom_tile(colour = "white") + 
-  facet_grid(year(my_netflix_per_day$Date) ~ month) + 
+  count(year = year(Date), month, wday_name) %>% 
+  ggplot(aes(y = wday_name, x = month, fill = n)) + 
+  geom_tile(colour = "white", show.legend = F) + 
+  facet_wrap("year") + 
   scale_fill_gradient(low = "#FFD000",
                       high = "#FF1919") +
   labs(title = "Mein Netflix-Serienkonsum über die Zeit",
        subtitle = "Heatmap für Tage, Wochen und Monate",
-       x = "Wochennummer",
+       x = "Monat",
        y = "Wochentag",
        fill = "Anzahl geschauter Folgen")
 ```
@@ -183,4 +186,3 @@ my_netflix_month %>%
   ggtitle("Intensität der Netflix-Nutzung",
                 "Nutzungsunterschiede nach Monaten")
 ```
-
